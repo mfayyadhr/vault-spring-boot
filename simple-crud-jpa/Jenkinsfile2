@@ -1,0 +1,55 @@
+pipeline {
+    agent any
+    
+    stages {
+        stage("Checkout") {
+            steps {
+                git branch: "main", url: "https://github.com/mfayyadhr/vault-spring-boot.git"
+            }
+        }
+        
+        stage("Build & Package") {
+            steps {
+                dir('simple-crud-jpa'){
+                    sh 'mvn clean package -DskipTests'
+                }
+            }
+        }
+        
+        stage('Build Docker Image') {
+            steps {
+                dir('simple-crud-jpa'){
+                    sh 'docker build -t mfayyadhr/vault-spring-boot/simple-crud-jpa .'
+                }
+            }
+        }
+        
+        stage('Push Docker Image') {
+            steps{
+                sh '''
+                    docker push mfayyadhr/vault-spring-boot/simple-crud-jpa:latest
+                    docker logout
+                '''
+            }
+        }
+        
+        stage('Deploy via Ansible'){
+            steps{
+                echo 'Deploying application on target server via Ansible....'
+                sh '''
+                    ansible-playbook -i /home/jenkins/ansible/inventories/inventory.ini /home/jenkins/ansible/playbooks/deploy-simple-crud-jpa.yml \
+                    --extra-vars "image=mfayyadhr/vault-spring-boot/simple-crud-jpa:latest"
+                '''
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo 'Deployment successful ✅'
+        }
+        failure {
+            echo 'Deployment failed ❌'
+        }
+    }
+}
