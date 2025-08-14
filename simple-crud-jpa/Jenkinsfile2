@@ -1,6 +1,12 @@
 pipeline {
     agent any
     
+    environment {
+        // Ambil dari Jenkins credentials dengan ID: dockerhub-creds
+        DOCKER_USERNAME = credentials('dockerhub-username')
+        DOCKER_PASSWORD = credentials('dockerhub-password')
+    }
+    
     stages {
         stage("Checkout") {
             steps {
@@ -19,7 +25,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 dir('simple-crud-jpa'){
-                    sh 'docker build -t mfayyadhr/vault-spring-boot/simple-crud-jpa .'
+                    sh 'docker build -t mfayyadhr/simple-crud-jpa:latest .'
                 }
             }
         }
@@ -27,7 +33,8 @@ pipeline {
         stage('Push Docker Image') {
             steps{
                 sh '''
-                    docker push mfayyadhr/vault-spring-boot/simple-crud-jpa:latest
+                    docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+                    docker push mfayyadhr/simple-crud-jpa:latest
                     docker logout
                 '''
             }
@@ -38,7 +45,7 @@ pipeline {
                 echo 'Deploying application on target server via Ansible....'
                 sh '''
                     ansible-playbook -i /home/jenkins/ansible/inventories/inventory.ini /home/jenkins/ansible/playbooks/deploy-simple-crud-jpa.yml \
-                    --extra-vars "image=mfayyadhr/vault-spring-boot/simple-crud-jpa:latest"
+                    --extra-vars "image=mfayyadhr/simple-crud-jpa:latest"
                 '''
             }
         }
